@@ -1,0 +1,8 @@
+{
+  "name": "Sistema TPV Moderno & Seguro",
+  "description": "Terminal Punto de Venta (POS / TPV) integral con dashboard gerencial, estadísticas contables en tiempo real, multimoneda, control de inventario, facturación, compras y devoluciones.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
