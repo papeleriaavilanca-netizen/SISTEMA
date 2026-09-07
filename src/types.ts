@@ -106,8 +106,11 @@ export interface Product {
   codigoBarras: string;
   categoriaId: string;
   precioCompra: number; // Costo
-  precioVenta: number;
-  porcentajeGanancia: number; // % calculado automaticamente
+  precioVenta: number; // PRECIO AL DETAL
+  porcentajeGanancia: number; // % calculado automaticamente para detal
+  ventaMayorActiva?: boolean; // Selector venta al mayor (Activo por defecto)
+  precioMayor?: number; // PRECIO AL MAYOR
+  porcentajeGananciaMayor?: number; // % calculado automaticamente para mayor
   impuestoId: string; // Tax ID
   stockActual: number;
   stockMinimo: number;

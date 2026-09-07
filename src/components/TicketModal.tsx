@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Sale, CompanyConfig, CurrencyConfig } from '../types';
 import { formatCurrency, generateWhatsAppMessage } from '../utils/formatters';
-import { Printer, MessageSquare, X, CheckCircle2, Share2, Copy, Check, ExternalLink } from 'lucide-react';
+import { generateTicketPDF } from '../utils/ticketPdf';
+import { Printer, MessageSquare, X, CheckCircle2, Share2, Copy, Check, ExternalLink, FileDown } from 'lucide-react';
 
 interface TicketModalProps {
   sale: Sale;
@@ -56,6 +57,33 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = () => {
+    generateTicketPDF(
+      {
+        saleNumber: sale.numeroTicket,
+        date: new Date(sale.fecha),
+        vendorName: sale.vendedorNombre,
+        client: sale.cliente,
+        items: sale.items,
+        subtotalPrincipal: sale.subtotalPrincipal,
+        impuestosPrincipal: sale.impuestosPrincipal,
+        totalPrincipal: sale.totalPrincipal,
+        subtotalReferencia: sale.subtotalReferencia,
+        impuestosReferencia: sale.impuestosReferencia,
+        totalReferencia: sale.totalReferencia,
+        tasaCambio: sale.tasaCambioAplicada,
+        paymentMethod: sale.pago.metodo,
+        paidPrincipal: sale.pago.montoPagadoPrincipal,
+        paidReferencia: sale.pago.montoPagadoReferencia,
+        cambioPrincipal: sale.pago.cambioPrincipal,
+        cambioReferencia: sale.pago.cambioReferencia,
+        referenceCode: sale.pago.referenciaBancaria,
+      },
+      company,
+      currency
+    );
   };
 
   const handleSendWhatsApp = () => {
@@ -122,15 +150,25 @@ export const TicketModal: React.FC<TicketModalProps> = ({
 
         {/* Action Controls (Top Bar) */}
         <div className="p-4 bg-slate-50/80 border-b border-slate-200 space-y-3 no-print">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* Direct Print Button */}
             <button
               onClick={handlePrint}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-98"
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-98"
               title="Imprimir ticket térmico"
             >
-              <Printer className="w-4 h-4" />
-              <span>Imprimir Factura / Ticket</span>
+              <Printer className="w-4 h-4 text-slate-300" />
+              <span>Imprimir</span>
+            </button>
+
+            {/* Direct PDF Download Button */}
+            <button
+              onClick={handleDownloadPDF}
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-98"
+              title="Descargar Ticket en formato PDF"
+            >
+              <FileDown className="w-4 h-4 text-indigo-200" />
+              <span>Guardar PDF</span>
             </button>
 
             {/* Direct WhatsApp Button / Link */}
@@ -138,11 +176,11 @@ export const TicketModal: React.FC<TicketModalProps> = ({
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-98"
-              title="Enviar ticket por WhatsApp"
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-98"
+              title="Enviar ticket directamente por WhatsApp"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Enviar por WhatsApp</span>
+              <span>WhatsApp</span>
               <ExternalLink className="w-3.5 h-3.5 opacity-80" />
             </a>
           </div>
@@ -327,15 +365,25 @@ export const TicketModal: React.FC<TicketModalProps> = ({
             <button
               onClick={handlePrint}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
+              title="Imprimir ticket"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Imprimir</span>
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
+              title="Descargar en PDF"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              <span>PDF</span>
             </button>
             <a
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
+              title="Enviar por WhatsApp"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>WhatsApp</span>

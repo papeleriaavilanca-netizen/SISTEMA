@@ -175,17 +175,19 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-50 text-slate-800 overflow-hidden select-none font-sans">
-      {/* Global Header */}
-      <Header
-        company={company}
-        currency={currency}
-        currentUser={currentUser}
-        onOpenUserSwitch={() => setShowUserSwitch(true)}
-        onLogout={handleLogout}
-        onToggleModules={() => setModulesOpen((prev) => !prev)}
-        isModulesOpen={modulesOpen}
-        activeModuleLabel={TAB_LABELS[activeTab]}
-      />
+      {/* Global Header - Omitted in VENTAS (POS) module to avoid duplicate headers per user specification */}
+      {activeTab !== 'ventas' && (
+        <Header
+          company={company}
+          currency={currency}
+          currentUser={currentUser}
+          onOpenUserSwitch={() => setShowUserSwitch(true)}
+          onLogout={handleLogout}
+          onToggleModules={() => setModulesOpen((prev) => !prev)}
+          isModulesOpen={modulesOpen}
+          activeModuleLabel={TAB_LABELS[activeTab]}
+        />
+      )}
 
       {/* Main Workspace Layout */}
       <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden relative">
@@ -270,6 +272,9 @@ export default function App() {
               currentUser={currentUser}
               sales={sales}
               onSaleCompleted={handleSaleCompleted}
+              onLogout={handleLogout}
+              onToggleModules={() => setModulesOpen((prev) => !prev)}
+              isModulesOpen={modulesOpen}
             />
           )}
 

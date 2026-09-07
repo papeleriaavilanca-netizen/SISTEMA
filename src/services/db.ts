@@ -121,6 +121,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 3.50,
     precioVenta: 5.50,
     porcentajeGanancia: 57.14,
+    ventaMayorActiva: true,
+    precioMayor: 4.80,
+    porcentajeGananciaMayor: 37.14,
     impuestoId: 'tax-1',
     stockActual: 85,
     stockMinimo: 20,
@@ -136,6 +139,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 2.80,
     precioVenta: 4.80,
     porcentajeGanancia: 71.43,
+    ventaMayorActiva: true,
+    precioMayor: 4.00,
+    porcentajeGananciaMayor: 42.86,
     impuestoId: 'tax-1',
     stockActual: 42,
     stockMinimo: 10,
@@ -194,6 +200,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 6.00,
     precioVenta: 9.90,
     porcentajeGanancia: 65.00,
+    ventaMayorActiva: true,
+    precioMayor: 8.50,
+    porcentajeGananciaMayor: 41.67,
     impuestoId: 'tax-1',
     stockActual: 18,
     stockMinimo: 5,
@@ -239,6 +248,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 11.50,
     precioVenta: 18.00,
     porcentajeGanancia: 56.52,
+    ventaMayorActiva: true,
+    precioMayor: 15.50,
+    porcentajeGananciaMayor: 34.78,
     impuestoId: 'tax-1',
     stockActual: 8,
     stockMinimo: 4,
@@ -254,6 +266,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 4.20,
     precioVenta: 7.20,
     porcentajeGanancia: 71.43,
+    ventaMayorActiva: true,
+    precioMayor: 6.00,
+    porcentajeGananciaMayor: 42.86,
     impuestoId: 'tax-1',
     stockActual: 30,
     stockMinimo: 8,
@@ -269,6 +284,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 1.10,
     precioVenta: 2.00,
     porcentajeGanancia: 81.82,
+    ventaMayorActiva: true,
+    precioMayor: 1.60,
+    porcentajeGananciaMayor: 45.45,
     impuestoId: 'tax-1',
     stockActual: 95,
     stockMinimo: 25,
@@ -284,6 +302,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 2.50,
     precioVenta: 4.50,
     porcentajeGanancia: 80.00,
+    ventaMayorActiva: true,
+    precioMayor: 3.80,
+    porcentajeGananciaMayor: 52.00,
     impuestoId: 'tax-1',
     stockActual: 14,
     stockMinimo: 6,
@@ -299,6 +320,9 @@ const INITIAL_PRODUCTS: Product[] = [
     precioCompra: 0.40,
     precioVenta: 0.85,
     porcentajeGanancia: 112.50,
+    ventaMayorActiva: true,
+    precioMayor: 0.65,
+    porcentajeGananciaMayor: 62.50,
     impuestoId: 'tax-3', // Exento
     stockActual: 48,
     stockMinimo: 12,
@@ -571,6 +595,24 @@ class DatabaseService {
 
     this.addAuditLog('LOGIN_FALLIDO', 'SEGURIDAD', `Intento de acceso fallido para el usuario '${trimmedId}'`);
     return { success: false, error: 'Credenciales inválidas. Verifique su usuario o contraseña.' };
+  }
+
+  public authenticateWithPin(userId: string, pin: string): { success: boolean; user?: User; error?: string } {
+    const trimmedPin = pin.trim();
+    if (!trimmedPin) {
+      return { success: false, error: 'Por favor introduzca el PIN de seguridad.' };
+    }
+    const user = this.db.usuarios.find((u) => u.id === userId && u.activo);
+    if (!user) {
+      return { success: false, error: 'Usuario no encontrado o inactivo.' };
+    }
+    if (user.pin === trimmedPin) {
+      this.setCurrentUser(user);
+      this.addAuditLog('CAMBIO_VENDEDOR_PIN', 'TPV', `Cambio de vendedor verificado por PIN: ${user.nombre} ${user.apellido} (${user.role})`);
+      return { success: true, user };
+    }
+    this.addAuditLog('PIN_FALLIDO', 'SEGURIDAD', `PIN incorrecto al intentar cambiar al usuario ${user.nombre} ${user.apellido}`);
+    return { success: false, error: 'PIN de seguridad incorrecto.' };
   }
 
   public getCurrentUser(): User | null {
@@ -1086,6 +1128,48 @@ class DatabaseService {
     );
     this.saveDatabase(this.db);
     return newSale;
+  }
+
+  public saveSale(sale: Sale): Sale {
+    const idx = this.db.ventas.findIndex((v) => v.id === sale.id);
+    if (idx >= 0) {
+      this.db.ventas[idx] = sale;
+    } else {
+      for (const item of sale.items) {
+        const prod = this.db.productos.find((p) => p.id === item.producto.id);
+        if (prod) {
+          const stockAnterior = prod.stockActual;
+          prod.stockActual = Math.max(0, prod.stockActual - item.cantidad);
+          if (item.variante && prod.variantes) {
+            const varObj = prod.variantes.find((v) => v.id === item.variante!.id);
+            if (varObj) {
+              varObj.stock = Math.max(0, varObj.stock - item.cantidad);
+            }
+          }
+          const itemDescriptor = item.variante ? `${prod.nombre} (${item.variante.nombre})` : prod.nombre;
+          this.addMovement({
+            productoId: prod.id,
+            productoNombre: itemDescriptor,
+            tipo: 'SALIDA_VENTA',
+            cantidad: item.cantidad,
+            stockAnterior,
+            stockPosterior: prod.stockActual,
+            motivo: `Venta TPV Ticket #${sale.numeroTicket}`,
+            referenciaDoc: sale.numeroTicket,
+            usuarioId: sale.vendedorId,
+            usuarioNombre: sale.vendedorNombre,
+          });
+        }
+      }
+      this.db.ventas.unshift(sale);
+      this.addAuditLog(
+        'VENTA_COMPLETADA',
+        'VENTAS',
+        `Venta completada Ticket #${sale.numeroTicket} por $${sale.totalPrincipal.toFixed(2)} (${sale.totalReferencia.toFixed(2)} ${this.db.moneda.monedaReferencia.codigo}) - Vendedor: ${sale.vendedorNombre}`
+      );
+    }
+    this.saveDatabase(this.db);
+    return sale;
   }
 
   // Get unique recent clients from sales and default templates

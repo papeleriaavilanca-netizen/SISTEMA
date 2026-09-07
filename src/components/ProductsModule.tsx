@@ -76,8 +76,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   const [codigoBarras, setCodigoBarras] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [precioCompra, setPrecioCompra] = useState('0');
-  const [precioVenta, setPrecioVenta] = useState('0');
+  const [precioVenta, setPrecioVenta] = useState('0'); // PRECIO AL DETAL
   const [porcentajeGanancia, setPorcentajeGanancia] = useState('0');
+  const [ventaMayorActiva, setVentaMayorActiva] = useState(true); // Selector para ventas al mayor (Activo por Defecto)
+  const [precioMayor, setPrecioMayor] = useState('0'); // PRECIO AL MAYOR
+  const [porcentajeGananciaMayor, setPorcentajeGananciaMayor] = useState('0');
   const [impuestoId, setImpuestoId] = useState('');
   const [stockActual, setStockActual] = useState('0');
   const [stockMinimo, setStockMinimo] = useState('5');
@@ -169,8 +172,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
     setCodigoBarras('759' + Math.floor(100000000 + Math.random() * 900000000));
     setCategoriaId(categories[0]?.id || '');
     setPrecioCompra('1.00');
-    setPrecioVenta('1.50');
+    setPrecioVenta('1.50'); // PRECIO AL DETAL
     setPorcentajeGanancia('50.00');
+    setVentaMayorActiva(true); // Selector para ventas al mayor (Activo por Defecto)
+    setPrecioMayor('1.25'); // PRECIO AL MAYOR
+    setPorcentajeGananciaMayor('25.00');
     setImpuestoId(defaultTax?.id || '');
     setStockActual('10');
     setStockMinimo('5');
@@ -190,6 +196,22 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
     setPrecioCompra(p.precioCompra.toString());
     setPrecioVenta(p.precioVenta.toString());
     setPorcentajeGanancia(p.porcentajeGanancia.toString());
+
+    // Selector para ventas al mayor: Activo por defecto si no está explícitamente desactivado
+    const isWholesaleActive = p.ventaMayorActiva !== false;
+    setVentaMayorActiva(isWholesaleActive);
+
+    const defaultMayorPrice = p.precioMayor !== undefined && p.precioMayor > 0
+      ? p.precioMayor
+      : Number((p.precioVenta * 0.85).toFixed(2));
+    setPrecioMayor(defaultMayorPrice.toString());
+
+    const costVal = p.precioCompra || 0;
+    const mayorMarginVal = costVal > 0
+      ? calculateProfitMargin(costVal, defaultMayorPrice)
+      : (p.porcentajeGananciaMayor || 25);
+    setPorcentajeGananciaMayor(mayorMarginVal.toFixed(2));
+
     setImpuestoId(p.impuestoId);
     setStockActual(p.stockActual.toString());
     setStockMinimo(p.stockMinimo.toString());
@@ -201,7 +223,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
     setShowModal(true);
   };
 
-  // Profit Margin Auto Calculations
+  // Profit Margin Auto Calculations - PRECIO AL DETAL
   const handleCostChange = (val: string) => {
     setPrecioCompra(val);
     const cost = parseFloat(val) || 0;
@@ -209,6 +231,13 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
     if (cost > 0) {
       const newSale = calculatePriceFromMargin(cost, margin);
       setPrecioVenta(newSale.toFixed(2));
+    }
+    if (ventaMayorActiva) {
+      const marginMayor = parseFloat(porcentajeGananciaMayor) || 0;
+      if (cost > 0) {
+        const newMayor = calculatePriceFromMargin(cost, marginMayor);
+        setPrecioMayor(newMayor.toFixed(2));
+      }
     }
   };
 
@@ -229,6 +258,27 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
     if (cost > 0) {
       const newSale = calculatePriceFromMargin(cost, margin);
       setPrecioVenta(newSale.toFixed(2));
+    }
+  };
+
+  // Profit Margin Auto Calculations - PRECIO AL MAYOR
+  const handleWholesalePriceChange = (val: string) => {
+    setPrecioMayor(val);
+    const sale = parseFloat(val) || 0;
+    const cost = parseFloat(precioCompra) || 0;
+    if (cost > 0) {
+      const margin = calculateProfitMargin(cost, sale);
+      setPorcentajeGananciaMayor(margin.toFixed(2));
+    }
+  };
+
+  const handleWholesaleMarginChange = (val: string) => {
+    setPorcentajeGananciaMayor(val);
+    const margin = parseFloat(val) || 0;
+    const cost = parseFloat(precioCompra) || 0;
+    if (cost > 0) {
+      const newSale = calculatePriceFromMargin(cost, margin);
+      setPrecioMayor(newSale.toFixed(2));
     }
   };
 
@@ -263,8 +313,20 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
       return;
     }
     if (saleNum <= 0) {
-      setFormError('El precio de venta debe ser un número mayor a 0.');
+      setFormError('El precio al detal debe ser un número mayor a 0.');
       return;
+    }
+
+    // Wholesale price validation if active
+    let wholesaleNum: number | undefined = undefined;
+    let wholesaleMarginNum: number | undefined = undefined;
+    if (ventaMayorActiva) {
+      wholesaleNum = parseFloat(precioMayor) || 0;
+      if (wholesaleNum <= 0) {
+        setFormError('El precio al mayor debe ser un número mayor a 0.');
+        return;
+      }
+      wholesaleMarginNum = costNum > 0 ? calculateProfitMargin(costNum, wholesaleNum) : (parseFloat(porcentajeGananciaMayor) || 0);
     }
 
     const isDec = ['KG', 'LTS', 'MTS'].includes(unidadMedida);
@@ -290,6 +352,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
       precioCompra: costNum,
       precioVenta: saleNum,
       porcentajeGanancia: marginNum,
+      ventaMayorActiva,
+      precioMayor: ventaMayorActiva ? wholesaleNum : undefined,
+      porcentajeGananciaMayor: ventaMayorActiva ? wholesaleMarginNum : undefined,
       impuestoId: impuestoId || defaultTax?.id || 'tax-1',
       stockActual: stockActualNum,
       stockMinimo: stockMinimoNum,
@@ -350,9 +415,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
       'Nombre',
       'Categoria',
       'Unidad',
-      'P. Compra',
-      '% Margen',
-      'P. Venta',
+      'P. Compra (Costo)',
+      'P. Detal',
+      '% Margen Detal',
+      'Venta Mayor Activa',
+      'P. Mayor',
+      '% Margen Mayor',
       'Stock Actual',
       'Stock Minimo',
       'Estado',
@@ -361,6 +429,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
 
     const rows = filtered.map((p) => {
       const cat = categories.find((c) => c.id === p.categoriaId)?.nombre || 'Sin categoría';
+      const isMayor = p.ventaMayorActiva !== false;
       return [
         p.id,
         `"${p.codigoBarras}"`,
@@ -368,8 +437,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
         `"${cat}"`,
         p.unidadMedida,
         p.precioCompra.toFixed(2),
-        p.porcentajeGanancia.toFixed(2),
         p.precioVenta.toFixed(2),
+        p.porcentajeGanancia.toFixed(2),
+        isMayor ? 'SI' : 'NO',
+        isMayor && p.precioMayor ? p.precioMayor.toFixed(2) : 'N/A',
+        isMayor && p.precioMayor ? (p.porcentajeGananciaMayor || 0).toFixed(2) : 'N/A',
         p.stockActual,
         p.stockMinimo,
         p.activo ? 'ACTIVO' : 'INACTIVO',
@@ -688,9 +760,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 <th className="px-4 py-3.5">Código / Barra</th>
                 <th className="px-4 py-3.5">Nombre & Categoría</th>
                 <th className="px-4 py-3.5">P. Compra (Costo)</th>
-                <th className="px-4 py-3.5">% Margen</th>
-                <th className="px-4 py-3.5">P. Venta ({currency.monedaPrincipal.simbolo})</th>
-                <th className="px-4 py-3.5">P. Venta ({currency.monedaReferencia.simbolo})</th>
+                <th className="px-4 py-3.5">Precio al Detal</th>
+                <th className="px-4 py-3.5">Precio al Mayor</th>
+                <th className="px-4 py-3.5">Ref. Detal ({currency.monedaReferencia.simbolo})</th>
                 <th className="px-4 py-3.5">Impuesto</th>
                 <th className="px-4 py-3.5">Stock</th>
                 <th className="px-4 py-3.5 text-center">Estado</th>
@@ -778,13 +850,28 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                           {formatCurrency(p.precioCompra, currency.monedaPrincipal)}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            <TrendingUp className="w-3 h-3" />
-                            {p.porcentajeGanancia.toFixed(1)}%
-                          </span>
+                          <div className="font-bold text-emerald-600 font-mono text-sm">
+                            {formatCurrency(p.precioVenta, currency.monedaPrincipal)}
+                          </div>
+                          <div className="text-[10px] text-emerald-700 font-mono font-medium">
+                            +{p.porcentajeGanancia.toFixed(1)}% margen
+                          </div>
                         </td>
-                        <td className="px-4 py-3 font-bold text-emerald-600 font-mono text-sm">
-                          {formatCurrency(p.precioVenta, currency.monedaPrincipal)}
+                        <td className="px-4 py-3">
+                          {p.ventaMayorActiva !== false && p.precioMayor && p.precioMayor > 0 ? (
+                            <div>
+                              <div className="font-bold text-indigo-700 font-mono text-sm">
+                                {formatCurrency(p.precioMayor, currency.monedaPrincipal)}
+                              </div>
+                              <div className="text-[10px] text-indigo-600 font-mono font-medium">
+                                +{(p.porcentajeGananciaMayor || calculateProfitMargin(p.precioCompra, p.precioMayor)).toFixed(1)}% margen
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-400 text-[10px] font-semibold">
+                              Inactivo
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 font-medium text-slate-500 font-mono">
                           {formatCurrency(priceRef, currency.monedaReferencia)}
@@ -1004,28 +1091,41 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 </div>
               )}
 
-              {/* Status Switch */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <div>
-                  <span className="text-xs font-bold text-slate-800 block">
-                    Estado del Producto en Catálogo
-                  </span>
-                  <span className="text-[10px] text-slate-500">
-                    Si está inactivo, no aparecerá disponible para ventas en la caja TPV
-                  </span>
+              {/* Selectores Superiores: ESTADO y VENTA AL MAYOR uno al lado del otro sin texto descriptivo adicional externo */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Selector ESTADO */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-xs font-bold text-slate-800">ESTADO</span>
+                  <button
+                    type="button"
+                    onClick={() => setActivo((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition border ${
+                      activo
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                        : 'bg-slate-200 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {activo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                    <span>{activo ? 'Activo' : 'Inactivo'}</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActivo((prev) => !prev)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition border ${
-                    activo
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
-                      : 'bg-slate-200 text-slate-700 border-slate-300'
-                  }`}
-                >
-                  {activo ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                  {activo ? 'Activo (Visible)' : 'Inactivo (Oculto)'}
-                </button>
+
+                {/* Selector VENTA AL MAYOR */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-xs font-bold text-slate-800">VENTA AL MAYOR</span>
+                  <button
+                    type="button"
+                    onClick={() => setVentaMayorActiva((prev) => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition border ${
+                      ventaMayorActiva
+                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                        : 'bg-slate-200 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {ventaMayorActiva ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                    <span>{ventaMayorActiva ? 'Activo' : 'Inactivo'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Name & Barcode */}
@@ -1198,96 +1298,180 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 )}
               </div>
 
-              {/* AUTOMATIC PROFIT CALCULATION BOX */}
-              <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-100 space-y-3">
+              {/* AUTOMATIC PROFIT CALCULATION BOX - PRECIO AL DETAL Y PRECIO AL MAYOR */}
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    Cálculo Inteligente de Margen y Precios
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <DollarSign className="w-4 h-4 text-emerald-600" />
+                    Esquema de Precios y Ganancia
                   </span>
                   <span className="text-[10px] text-slate-500">
-                    Cambia cualquier campo y los demás se actualizarán al instante
+                    Cálculo automático de márgenes y equivalencias en {currency.monedaReferencia.codigo}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Precio de Compra (Costo) *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2 text-xs text-slate-400">
-                        {currency.monedaPrincipal.simbolo}
-                      </span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        value={precioCompra}
-                        onChange={(e) => handleCostChange(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-7 pr-3 py-2 text-xs text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      % Margen de Ganancia
-                    </label>
-                    <div className="relative">
-                      <span className="absolute right-3 top-2 text-xs text-slate-400">%</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={porcentajeGanancia}
-                        onChange={(e) => handleMarginChange(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-emerald-700 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Precio de Venta Final *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-2 text-xs text-slate-400">
-                        {currency.monedaPrincipal.simbolo}
-                      </span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        required
-                        value={precioVenta}
-                        onChange={(e) => handleSalePriceChange(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-7 pr-3 py-2 text-xs text-emerald-600 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
+                {/* Precio de Compra (Costo) */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Precio de Compra (Costo) *
+                  </label>
+                  <div className="relative max-w-xs">
+                    <span className="absolute left-3 top-2 text-xs text-slate-400">
+                      {currency.monedaPrincipal.simbolo}
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={precioCompra}
+                      onChange={(e) => handleCostChange(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-7 pr-3 py-2 text-xs text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
                   </div>
                 </div>
 
-                {/* Real-time Reference Calculation Preview */}
-                <div className="pt-2 border-t border-emerald-100 flex items-center justify-between text-xs">
-                  <div className="text-slate-600">
-                    Ganancia Unitaria:{' '}
-                    <strong className="text-emerald-700">
-                      {formatCurrency(
-                        Math.max(0, (parseFloat(precioVenta) || 0) - (parseFloat(precioCompra) || 0)),
-                        currency.monedaPrincipal
-                      )}
-                    </strong>
+                {/* Grid con PRECIO AL DETAL y (si ventaMayorActiva) PRECIO AL MAYOR */}
+                <div className={`grid grid-cols-1 ${ventaMayorActiva ? 'sm:grid-cols-2' : ''} gap-3`}>
+                  {/* PRECIO AL DETAL */}
+                  <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                        <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                        PRECIO AL DETAL
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        Venta estándar
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                          % Margen Detal
+                        </label>
+                        <div className="relative">
+                          <span className="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={porcentajeGanancia}
+                            onChange={(e) => handleMarginChange(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-emerald-700 font-mono font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                          PRECIO AL DETAL *
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">
+                            {currency.monedaPrincipal.simbolo}
+                          </span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            required
+                            value={precioVenta}
+                            onChange={(e) => handleSalePriceChange(e.target.value)}
+                            className="w-full bg-slate-50 border border-emerald-300 rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-emerald-700 font-mono font-extrabold focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">
+                        Ganancia:{' '}
+                        <strong className="text-emerald-700 font-mono">
+                          {formatCurrency(
+                            Math.max(0, (parseFloat(precioVenta) || 0) - (parseFloat(precioCompra) || 0)),
+                            currency.monedaPrincipal
+                          )}
+                        </strong>
+                      </span>
+                      <span className="text-slate-700 font-mono font-bold">
+                        {formatCurrency(
+                          convertToRef(parseFloat(precioVenta) || 0, currency.tasaCambio),
+                          currency.monedaReferencia
+                        )}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-slate-600">
-                    Equivalente en {currency.monedaReferencia.codigo}:{' '}
-                    <strong className="text-slate-800 font-mono font-bold">
-                      {formatCurrency(
-                        convertToRef(parseFloat(precioVenta) || 0, currency.tasaCambio),
-                        currency.monedaReferencia
-                      )}
-                    </strong>
-                  </div>
+
+                  {/* PRECIO AL MAYOR (Eliminado si ventaMayorActiva está desactivado) */}
+                  {ventaMayorActiva && (
+                    <div className="p-3 bg-white rounded-xl border border-indigo-200 shadow-2xs space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                          <Boxes className="w-3.5 h-3.5 text-indigo-600" />
+                          PRECIO AL MAYOR
+                        </span>
+                        <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                          Venta por mayor
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                            % Margen Mayor
+                          </label>
+                          <div className="relative">
+                            <span className="absolute right-2.5 top-1.5 text-xs text-slate-400">%</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={porcentajeGananciaMayor}
+                              onChange={(e) => handleWholesaleMarginChange(e.target.value)}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-indigo-700 font-mono font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                            PRECIO AL MAYOR *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1.5 text-xs text-slate-400">
+                              {currency.monedaPrincipal.simbolo}
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              required={ventaMayorActiva}
+                              value={precioMayor}
+                              onChange={(e) => handleWholesalePriceChange(e.target.value)}
+                              className="w-full bg-slate-50 border border-indigo-300 rounded-lg pl-6 pr-2.5 py-1.5 text-xs text-indigo-700 font-mono font-extrabold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">
+                          Ganancia:{' '}
+                          <strong className="text-indigo-700 font-mono">
+                            {formatCurrency(
+                              Math.max(0, (parseFloat(precioMayor) || 0) - (parseFloat(precioCompra) || 0)),
+                              currency.monedaPrincipal
+                            )}
+                          </strong>
+                        </span>
+                        <span className="text-slate-700 font-mono font-bold">
+                          {formatCurrency(
+                            convertToRef(parseFloat(precioMayor) || 0, currency.tasaCambio),
+                            currency.monedaReferencia
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
