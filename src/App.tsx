@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from './services/db';
-import { Sale, User } from './types';
+import { Sale, User, WorkshopOrder } from './types';
 import { Header } from './components/Header';
 import { Sidebar, ActiveTab, TAB_LABELS } from './components/Sidebar';
 import { LoginModule } from './components/LoginModule';
@@ -16,6 +16,7 @@ import { ConfigModule } from './components/ConfigModule';
 import { AuditModule } from './components/AuditModule';
 import { TicketModal } from './components/TicketModal';
 import { UserSwitchModal } from './components/UserSwitchModal';
+import { WorkshopModule } from './components/WorkshopModule';
 import { Menu, X, LayoutGrid, ChevronRight } from 'lucide-react';
 
 export default function App() {
@@ -42,6 +43,15 @@ export default function App() {
   const refunds = db.getRefunds();
   const auditLogs = db.getAuditLogs();
   const currentUser = db.getCurrentUser();
+  const clients = db.getClients();
+
+  // Workshop Orders Reactive State
+  const [workshopOrders, setWorkshopOrders] = useState<WorkshopOrder[]>(() => db.getWorkshopOrders());
+  const [selectedWorkshopOrderId, setSelectedWorkshopOrderId] = useState<string | null>(null);
+
+  const refreshWorkshopOrders = () => {
+    setWorkshopOrders([...db.getWorkshopOrders()]);
+  };
 
   // Active module navigation
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -153,8 +163,11 @@ export default function App() {
   }
 
   const handleSaleCompleted = (sale: Sale, action: 'print' | 'whatsapp' | 'none' = 'none') => {
-    setCompletedSale(sale);
-    setInitialTicketAction(action);
+    // Si la acción es 'none', el módulo POS ya muestra de forma autónoma su pantalla exclusiva de resultado de operación
+    if (action !== 'none') {
+      setCompletedSale(sale);
+      setInitialTicketAction(action);
+    }
   };
 
   const handleTabSelect = (tab: ActiveTab) => {
@@ -275,7 +288,49 @@ export default function App() {
               onLogout={handleLogout}
               onToggleModules={() => setModulesOpen((prev) => !prev)}
               isModulesOpen={modulesOpen}
+              onNavigateToWorkshop={(orderId) => {
+                refreshWorkshopOrders();
+                if (orderId) {
+                  setSelectedWorkshopOrderId(orderId);
+                }
+                setActiveTab('taller');
+              }}
             />
+          )}
+
+          {activeTab === 'taller' && (
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+              <WorkshopModule
+                orders={workshopOrders}
+                onSaveOrder={(order) => {
+                  db.saveWorkshopOrder(order);
+                  refreshWorkshopOrders();
+                }}
+                onUpdateOrderStatus={(id, status, note) => {
+                  db.updateWorkshopOrderStatus(id, status, note);
+                  refreshWorkshopOrders();
+                }}
+                onUpdateOrderItemStatus={(orderId, itemId, status) => {
+                  db.updateWorkshopOrderItemStatus(orderId, itemId, status);
+                  refreshWorkshopOrders();
+                }}
+                onDeleteOrder={(id) => {
+                  db.deleteWorkshopOrder(id);
+                  refreshWorkshopOrders();
+                }}
+                onAddPayment={(id, amount, method, note) => {
+                  db.addWorkshopOrderPayment(id, amount, method, note);
+                  refreshWorkshopOrders();
+                }}
+                company={company}
+                currency={currency}
+                clients={clients}
+                products={products}
+                users={users}
+                currentUser={currentUser}
+                initialSelectedOrderId={selectedWorkshopOrderId}
+              />
+            </div>
           )}
 
           {activeTab === 'productos' && (

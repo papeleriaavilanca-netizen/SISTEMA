@@ -2,6 +2,9 @@ import {
   DatabaseSchema,
   CompanyConfig,
   CurrencyConfig,
+  CurrencyItem,
+  BankAccount,
+  PaymentMethodItem,
   Tax,
   Category,
   Product,
@@ -15,7 +18,14 @@ import {
   InventoryMovement,
   AuditLog,
   ClientData,
+  SavedSale,
   SecurityConfig,
+  ClientDebt,
+  DebtPaymentRecord,
+  WorkshopOrder,
+  WorkshopOrderStatus,
+  WorkshopOrderTimelineStep,
+  WorkshopOrderItem,
 } from '../types';
 
 export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
@@ -31,6 +41,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canManageConfig: true,
     canViewReports: true,
     canViewAuditLogs: true,
+    canManageWorkshop: true,
   },
   VENDEDOR: {
     canAccessPOS: true,
@@ -44,6 +55,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canManageConfig: false,
     canViewReports: true,
     canViewAuditLogs: false,
+    canManageWorkshop: true,
   },
   USUARIO: {
     canAccessPOS: false,
@@ -57,6 +69,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canManageConfig: false,
     canViewReports: false,
     canViewAuditLogs: false,
+    canManageWorkshop: true,
   },
 };
 
@@ -103,6 +116,180 @@ const INITIAL_CURRENCY: CurrencyConfig = {
   ultimaActualizacionTasa: new Date().toISOString(),
   modoAutoActualizar: true,
 };
+
+export const INITIAL_CURRENCY_ITEMS: CurrencyItem[] = [
+  {
+    id: 'curr-usd',
+    codigo: 'USD',
+    nombre: 'Dólar Estadounidense',
+    simbolo: '$',
+    decimales: 2,
+    esPrincipal: true,
+    esReferencia: false,
+    valorTasa: 1.0,
+    activa: true,
+  },
+  {
+    id: 'curr-ves',
+    codigo: 'VES',
+    nombre: 'Bolívar Digital',
+    simbolo: 'Bs.',
+    decimales: 2,
+    esPrincipal: false,
+    esReferencia: true,
+    valorTasa: 36.80,
+    activa: true,
+  },
+  {
+    id: 'curr-eur',
+    codigo: 'EUR',
+    nombre: 'Euro',
+    simbolo: '€',
+    decimales: 2,
+    esPrincipal: false,
+    esReferencia: false,
+    valorTasa: 0.92,
+    activa: true,
+  },
+  {
+    id: 'curr-cop',
+    codigo: 'COP',
+    nombre: 'Peso Colombiano',
+    simbolo: 'COL$',
+    decimales: 0,
+    esPrincipal: false,
+    esReferencia: false,
+    valorTasa: 4150.0,
+    activa: true,
+  },
+];
+
+export const INITIAL_BANK_ACCOUNTS: BankAccount[] = [
+  {
+    id: 'bank-banesco',
+    banco: 'Banesco Banco Universal',
+    codigo: '0134',
+    documentoId: 'J-12345678-9',
+    numeroCuenta: '0134-0001-22-0001234567',
+    titular: 'Papelería Ávila N.C.A.',
+    telefono: '0414-1234567',
+    tipo: 'CORRIENTE',
+    activa: true,
+  },
+  {
+    id: 'bank-bdv',
+    banco: 'Banco de Venezuela',
+    codigo: '0102',
+    documentoId: 'J-12345678-9',
+    numeroCuenta: '0102-0105-88-0009876543',
+    titular: 'Papelería Ávila N.C.A.',
+    telefono: '0414-1234567',
+    tipo: 'CORRIENTE',
+    activa: true,
+  },
+  {
+    id: 'bank-mercantil',
+    banco: 'Banco Mercantil',
+    codigo: '0105',
+    documentoId: 'J-12345678-9',
+    numeroCuenta: '0105-0022-44-0005544332',
+    titular: 'Papelería Ávila N.C.A.',
+    telefono: '0412-9876543',
+    tipo: 'CORRIENTE',
+    activa: true,
+  },
+  {
+    id: 'bank-caja-efectivo',
+    banco: 'Caja Principal / Efectivo',
+    codigo: '0001',
+    documentoId: 'J-12345678-9',
+    numeroCuenta: 'CAJA-TIENDA-01',
+    titular: 'Custodia de Caja Tienda',
+    telefono: '0212-5550192',
+    tipo: 'EFECTIVO',
+    activa: true,
+  },
+];
+
+export const INITIAL_PAYMENT_METHODS: PaymentMethodItem[] = [
+  {
+    id: 'pm-efectivo-usd',
+    nombre: 'Efectivo Divisas ($)',
+    tipo: 'EFECTIVO',
+    monedaId: 'curr-usd',
+    monedaCodigo: 'USD',
+    cuentaId: 'bank-caja-efectivo',
+    requiereReferencia: false,
+    activo: true,
+    instrucciones: 'Recepción directa en caja de billetes en buen estado sin tachaduras.',
+  },
+  {
+    id: 'pm-efectivo-ves',
+    nombre: 'Efectivo Bolívares (Bs.)',
+    tipo: 'EFECTIVO',
+    monedaId: 'curr-ves',
+    monedaCodigo: 'VES',
+    cuentaId: 'bank-caja-efectivo',
+    requiereReferencia: false,
+    activo: true,
+    instrucciones: 'Recepción en caja en efectivo en moneda nacional.',
+  },
+  {
+    id: 'pm-pagomovil-banesco',
+    nombre: 'Pago Móvil Banesco',
+    tipo: 'PAGO_MOVIL',
+    monedaId: 'curr-ves',
+    monedaCodigo: 'VES',
+    cuentaId: 'bank-banesco',
+    requiereReferencia: true,
+    activo: true,
+    instrucciones: 'Banco Banesco (0134) - RIF: J-12345678-9 - Tel: 0414-1234567. Indicar número de referencia.',
+  },
+  {
+    id: 'pm-pagomovil-bdv',
+    nombre: 'Pago Móvil Banco de Venezuela',
+    tipo: 'PAGO_MOVIL',
+    monedaId: 'curr-ves',
+    monedaCodigo: 'VES',
+    cuentaId: 'bank-bdv',
+    requiereReferencia: true,
+    activo: true,
+    instrucciones: 'Banco de Venezuela (0102) - RIF: J-12345678-9 - Tel: 0414-1234567.',
+  },
+  {
+    id: 'pm-transf-banesco',
+    nombre: 'Transferencia Banesco',
+    tipo: 'TRANSFERENCIA',
+    monedaId: 'curr-ves',
+    monedaCodigo: 'VES',
+    cuentaId: 'bank-banesco',
+    requiereReferencia: true,
+    activo: true,
+    instrucciones: 'Transferencias directas del mismo banco o interbancarias inmediatas.',
+  },
+  {
+    id: 'pm-punto-mercantil',
+    nombre: 'Punto de Venta Mercantil',
+    tipo: 'PUNTO_VENTA',
+    monedaId: 'curr-ves',
+    monedaCodigo: 'VES',
+    cuentaId: 'bank-mercantil',
+    requiereReferencia: true,
+    activo: true,
+    instrucciones: 'Deslizar tarjeta de débito o crédito en terminal de punto Mercantil.',
+  },
+  {
+    id: 'pm-zelle-usd',
+    nombre: 'Zelle / Dólares Digitales',
+    tipo: 'DIGITAL_ZELLE',
+    monedaId: 'curr-usd',
+    monedaCodigo: 'USD',
+    cuentaId: 'bank-banesco',
+    requiereReferencia: true,
+    activo: true,
+    instrucciones: 'Enviar a pagos@papeleriaavila.com. Colocar número de orden en la nota.',
+  },
+];
 
 const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat-1', nombre: 'Papelería & Oficina', color: 'emerald', icono: 'FileText', descripcion: 'Resmas, carpetas, bolígrafos, engrapadoras' },
@@ -384,16 +571,343 @@ const INITIAL_USERS: User[] = [
   },
 ];
 
+const INITIAL_CLIENTS: ClientData[] = [
+  { nombre: 'Consumidor Final', docId: 'V-00000000', telefono: '', direccion: 'Mostrador' },
+  { nombre: 'Inversiones Los Andes C.A.', docId: 'J-40123456-7', telefono: '+584141234567', direccion: 'Chacao, Caracas', email: 'compras@losandes.com' },
+  { nombre: 'María Gabriela Pérez', docId: 'V-18456123', telefono: '+584249876543', direccion: 'El Recreo, Caracas', email: 'mgabrielap@gmail.com' },
+  { nombre: 'Suministros Gráficos Ávila C.A.', docId: 'J-50987123-4', telefono: '+584125556677', direccion: 'Bello Monte, Caracas', email: 'contacto@graficosavila.com' },
+  { nombre: 'Alejandro Colmenares', docId: 'V-21345678', telefono: '+584163332211', direccion: 'Los Palos Grandes', email: 'acolmenares@hotmail.com' },
+];
+
+const INITIAL_DEBTS: ClientDebt[] = [
+  {
+    id: 'debt-init-1',
+    clienteDocId: 'J-40123456-7',
+    clienteNombre: 'Inversiones Los Andes C.A.',
+    clienteTelefono: '+584141234567',
+    ticketId: 'tkt-init-1',
+    numeroTicket: 'TKT-000004',
+    fecha: new Date(Date.now() - 86400000 * 3).toISOString(),
+    montoTotalPrincipal: 45.00,
+    montoAbonadoPrincipal: 15.00,
+    saldoPendientePrincipal: 30.00,
+    montoTotalReferencia: 1656.00,
+    montoAbonadoReferencia: 552.00,
+    saldoPendienteReferencia: 1104.00,
+    tasaCambio: 36.80,
+    estado: 'PENDIENTE',
+    notas: 'Venta a crédito de suministros de oficina. Saldo pendiente de pago.',
+    historialAbonos: [
+      {
+        id: 'abono-init-1',
+        fecha: new Date(Date.now() - 86400000 * 3).toISOString(),
+        montoPrincipal: 15.00,
+        montoReferencia: 552.00,
+        metodoPago: 'PAGO_MOVIL_TRANSFERENCIA',
+        referenciaBancaria: 'REF-7890',
+        usuarioNombre: 'Mariana González',
+        notas: 'Abono inicial en venta',
+      },
+    ],
+  },
+  {
+    id: 'debt-init-2',
+    clienteDocId: 'V-18456123',
+    clienteNombre: 'María Gabriela Pérez',
+    clienteTelefono: '+584249876543',
+    ticketId: 'tkt-init-2',
+    numeroTicket: 'TKT-000006',
+    fecha: new Date(Date.now() - 86400000 * 1).toISOString(),
+    montoTotalPrincipal: 25.50,
+    montoAbonadoPrincipal: 10.00,
+    saldoPendientePrincipal: 15.50,
+    montoTotalReferencia: 938.40,
+    montoAbonadoReferencia: 368.00,
+    saldoPendienteReferencia: 570.40,
+    tasaCambio: 36.80,
+    estado: 'PENDIENTE',
+    notas: 'Compra de cuadernos y resmas a crédito.',
+    historialAbonos: [
+      {
+        id: 'abono-init-2',
+        fecha: new Date(Date.now() - 86400000 * 1).toISOString(),
+        montoPrincipal: 10.00,
+        montoReferencia: 368.00,
+        metodoPago: 'EFECTIVO_PRINCIPAL',
+        usuarioNombre: 'Mariana González',
+        notas: 'Abono inicial en efectivo',
+      },
+    ],
+  },
+];
+
+const INITIAL_WORKSHOP_ORDERS: WorkshopOrder[] = [
+  {
+    id: 'ped-om-89214',
+    numeroPedido: '#OM-89214',
+    fechaCreacion: '2026-09-05T09:30:00.000Z',
+    fechaEstimadaEntrega: '2026-09-09',
+    cliente: {
+      nombre: 'Omar Rodríguez',
+      docId: 'V-19842510',
+      telefono: '+58 412 8765432',
+      direccion: 'Av. Las Delicias, Edf. Rosalba, Apto 4-B',
+    },
+    vendedorId: 'usr-vendedor',
+    vendedorNombre: 'Mariana González',
+    estado: 'EN_DISENO',
+    timeline: [
+      {
+        estado: 'CONFIRMADO',
+        titulo: 'PEDIDO CONFIRMADO',
+        fecha: '5 sep, 09:30 AM',
+        completado: true,
+        actual: false,
+        descripcion: 'Pedido confirmado y pago inicial verificado',
+      },
+      {
+        estado: 'EN_CONFECCION',
+        titulo: 'EN CONFECCIÓN',
+        fecha: '6 sep, 02:15 PM',
+        completado: true,
+        actual: false,
+        descripcion: 'Corte de telas y preparación de materiales',
+      },
+      {
+        estado: 'EN_DISENO',
+        titulo: 'EN DISEÑO',
+        fecha: '7 sep, 08:00 AM',
+        completado: false,
+        actual: true,
+        descripcion: '7 sep, 08:00 AM - Paquete salió del centro de distribución local',
+      },
+      {
+        estado: 'LISTO',
+        titulo: 'LISTO',
+        fecha: 'Estimado 9 sep',
+        completado: false,
+        actual: false,
+        descripcion: 'Control de calidad y embalaje final',
+      },
+      {
+        estado: 'ENTREGADO',
+        titulo: 'ENTREGADO',
+        fecha: 'Pendiente',
+        completado: false,
+        actual: false,
+        descripcion: 'Entrega final al cliente',
+      },
+    ],
+    items: [
+      {
+        id: 'item-1',
+        nombre: 'Tenis Deportivos - Talla 42',
+        codigo: 'CALZ-001',
+        cantidad: 2,
+        precioUnitario: 42.0,
+        total: 84.0,
+        tallaOColor: 'Talla 42 / Azul y Blanco',
+        notas: 'Personalización de plantilla y talón',
+      },
+      {
+        id: 'item-2',
+        nombre: 'Camiseta Algodón Negra - Talla L',
+        codigo: 'TEXT-004',
+        cantidad: 1,
+        precioUnitario: 31.0,
+        total: 31.0,
+        tallaOColor: 'Talla L / Negra',
+        notas: 'Estampado serigráfico en pecho',
+      },
+    ],
+    subtotalPrincipal: 115.0,
+    impuestosPrincipal: 0.0,
+    totalPrincipal: 115.0,
+    subtotalReferencia: 4209.0,
+    impuestosReferencia: 0.0,
+    totalReferencia: 4209.0,
+    tasaCambioAplicada: 36.6,
+    notasTaller: 'Cliente solicita atención en el secado de serigrafía. Entrega puntual.',
+    prioridad: 'ALTA',
+    montoAbonadoPrincipal: 70.0,
+    saldoPendientePrincipal: 45.0,
+  },
+  {
+    id: 'ped-cl-94821',
+    numeroPedido: '#PED-94821',
+    fechaCreacion: '2026-09-06T11:15:00.000Z',
+    fechaEstimadaEntrega: '2026-09-12',
+    cliente: {
+      nombre: 'Distribuidora Los Andes C.A.',
+      docId: 'J-30458921-0',
+      telefono: '+58 414 5551234',
+      direccion: 'Zona Industrial El Tambor, Galpón 12',
+    },
+    vendedorId: 'usr-admin',
+    vendedorNombre: 'Carlos Ávila',
+    estado: 'EN_CONFECCION',
+    timeline: [
+      {
+        estado: 'CONFIRMADO',
+        titulo: 'PEDIDO CONFIRMADO',
+        fecha: '6 sep, 11:15 AM',
+        completado: true,
+        actual: false,
+        descripcion: 'Orden de 30 chemises bordadas confirmada',
+      },
+      {
+        estado: 'EN_CONFECCION',
+        titulo: 'EN CONFECCIÓN',
+        fecha: '7 sep, 09:30 AM',
+        completado: false,
+        actual: true,
+        descripcion: '7 sep, 09:30 AM - Montaje en máquina bordadora industrial',
+      },
+      {
+        estado: 'EN_DISENO',
+        titulo: 'EN DISEÑO',
+        fecha: '6 sep, 04:00 PM',
+        completado: true,
+        actual: false,
+        descripcion: 'Matriz de bordado digitalizada y aprobada por el cliente',
+      },
+      {
+        estado: 'LISTO',
+        titulo: 'LISTO',
+        fecha: 'Estimado 12 sep',
+        completado: false,
+        actual: false,
+        descripcion: 'Revisión y planchado a vapor',
+      },
+      {
+        estado: 'ENTREGADO',
+        titulo: 'ENTREGADO',
+        fecha: 'Pendiente',
+        completado: false,
+        actual: false,
+        descripcion: 'Despacho con nota de entrega',
+      },
+    ],
+    items: [
+      {
+        id: 'item-corp-1',
+        nombre: 'Chemises Piqué con Bordado de Logotipo',
+        codigo: 'CHM-CORP-01',
+        cantidad: 30,
+        precioUnitario: 15.0,
+        total: 450.0,
+        tallaOColor: 'Surtido: 10 S, 10 M, 10 L',
+        notas: 'Bordado en pecho izquierdo (10cm ancho)',
+      },
+    ],
+    subtotalPrincipal: 450.0,
+    impuestosPrincipal: 0.0,
+    totalPrincipal: 450.0,
+    subtotalReferencia: 16470.0,
+    impuestosReferencia: 0.0,
+    totalReferencia: 16470.0,
+    tasaCambioAplicada: 36.6,
+    notasTaller: 'Hilo azul marino pantone 286C.',
+    prioridad: 'URGENTE',
+    montoAbonadoPrincipal: 250.0,
+    saldoPendientePrincipal: 200.0,
+  },
+  {
+    id: 'ped-vg-78210',
+    numeroPedido: '#PED-78210',
+    fechaCreacion: '2026-09-04T15:00:00.000Z',
+    fechaEstimadaEntrega: '2026-09-07',
+    cliente: {
+      nombre: 'Valeria Gómez',
+      docId: 'V-26120345',
+      telefono: '+58 416 3338901',
+      direccion: 'Urb. Santa Rosa, Calle 3, Casa #14',
+    },
+    vendedorId: 'usr-vendedor',
+    vendedorNombre: 'Mariana González',
+    estado: 'LISTO',
+    timeline: [
+      {
+        estado: 'CONFIRMADO',
+        titulo: 'PEDIDO CONFIRMADO',
+        fecha: '4 sep, 03:00 PM',
+        completado: true,
+        actual: false,
+        descripcion: 'Pedido recibido y pagado en su totalidad',
+      },
+      {
+        estado: 'EN_CONFECCION',
+        titulo: 'EN CONFECCIÓN',
+        fecha: '5 sep, 11:00 AM',
+        completado: true,
+        actual: false,
+        descripcion: 'Sublimación de tazas y embalaje',
+      },
+      {
+        estado: 'EN_DISENO',
+        titulo: 'EN DISEÑO',
+        fecha: '4 sep, 05:00 PM',
+        completado: true,
+        actual: false,
+        descripcion: 'Arte fotográfico procesado',
+      },
+      {
+        estado: 'LISTO',
+        titulo: 'LISTO',
+        fecha: '7 sep, 09:00 AM',
+        completado: true,
+        actual: true,
+        descripcion: '7 sep, 09:00 AM - Empaquetado y listo para retiro en mostrador',
+      },
+      {
+        estado: 'ENTREGADO',
+        titulo: 'ENTREGADO',
+        fecha: 'Pendiente retiro',
+        completado: false,
+        actual: false,
+        descripcion: 'Cliente notificado por WhatsApp para entrega',
+      },
+    ],
+    items: [
+      {
+        id: 'item-vg-1',
+        nombre: 'Tazas Mágicas Sublimadas Personalizadas',
+        codigo: 'REG-001',
+        cantidad: 6,
+        precioUnitario: 8.0,
+        total: 48.0,
+        tallaOColor: 'Cerámica negra 11oz',
+      },
+    ],
+    subtotalPrincipal: 48.0,
+    impuestosPrincipal: 0.0,
+    totalPrincipal: 48.0,
+    subtotalReferencia: 1756.8,
+    impuestosReferencia: 0.0,
+    totalReferencia: 1756.8,
+    tasaCambioAplicada: 36.6,
+    notasTaller: 'Incluye lazo decorativo y tarjeta de felicitación.',
+    prioridad: 'NORMAL',
+    montoAbonadoPrincipal: 48.0,
+    saldoPendientePrincipal: 0.0,
+  },
+];
+
 function getInitialDatabase(): DatabaseSchema {
   return {
     version: 1,
     empresa: INITIAL_COMPANY,
     seguridad: INITIAL_SECURITY,
     moneda: INITIAL_CURRENCY,
+    monedas: [...INITIAL_CURRENCY_ITEMS],
+    cuentasBancarias: [...INITIAL_BANK_ACCOUNTS],
+    metodosPagoConfig: [...INITIAL_PAYMENT_METHODS],
     impuestos: INITIAL_TAXES,
     categorias: INITIAL_CATEGORIES,
     productos: INITIAL_PRODUCTS,
     usuarios: INITIAL_USERS,
+    clientes: INITIAL_CLIENTS,
+    pedidosTaller: INITIAL_WORKSHOP_ORDERS,
     movimientos: [
       {
         id: 'mov-init-1',
@@ -425,6 +939,7 @@ function getInitialDatabase(): DatabaseSchema {
       },
     ],
     ventas: [],
+    cuentasPorCobrar: INITIAL_DEBTS,
     compras: [],
     devoluciones: [],
     auditoria: [
@@ -489,6 +1004,26 @@ class DatabaseService {
                 }
               }
             }
+          }
+          // Ensure cuentasPorCobrar is initialized
+          if (!parsed.cuentasPorCobrar || !Array.isArray(parsed.cuentasPorCobrar)) {
+            parsed.cuentasPorCobrar = [...INITIAL_DEBTS];
+          }
+          // Ensure pedidosTaller is initialized
+          if (!parsed.pedidosTaller || !Array.isArray(parsed.pedidosTaller) || parsed.pedidosTaller.length === 0) {
+            parsed.pedidosTaller = [...INITIAL_WORKSHOP_ORDERS];
+          }
+          // Ensure monedas is initialized
+          if (!parsed.monedas || !Array.isArray(parsed.monedas) || parsed.monedas.length === 0) {
+            parsed.monedas = [...INITIAL_CURRENCY_ITEMS];
+          }
+          // Ensure cuentasBancarias is initialized
+          if (!parsed.cuentasBancarias || !Array.isArray(parsed.cuentasBancarias) || parsed.cuentasBancarias.length === 0) {
+            parsed.cuentasBancarias = [...INITIAL_BANK_ACCOUNTS];
+          }
+          // Ensure metodosPagoConfig is initialized
+          if (!parsed.metodosPagoConfig || !Array.isArray(parsed.metodosPagoConfig) || parsed.metodosPagoConfig.length === 0) {
+            parsed.metodosPagoConfig = [...INITIAL_PAYMENT_METHODS];
           }
           return parsed;
         }
@@ -755,8 +1290,257 @@ class DatabaseService {
       ...currency,
       ultimaActualizacionTasa: new Date().toISOString(),
     };
+    if (this.db.monedas && Array.isArray(this.db.monedas)) {
+      this.db.monedas.forEach((c) => {
+        if (c.codigo === currency.monedaPrincipal.codigo) {
+          c.esPrincipal = true;
+          c.esReferencia = false;
+          c.valorTasa = 1.0;
+        } else if (c.codigo === currency.monedaReferencia.codigo) {
+          c.esReferencia = true;
+          c.esPrincipal = false;
+          c.valorTasa = currency.tasaCambio;
+        }
+      });
+    }
     this.addAuditLog('ACTUALIZAR_TASA_CAMBIO', 'CONFIGURACION', `Nueva tasa de cambio: 1 ${currency.monedaPrincipal.codigo} = ${currency.tasaCambio} ${currency.monedaReferencia.codigo}`);
     this.saveDatabase(this.db);
+  }
+
+  // -------------------------------------------------------------
+  // FACTURACIÓN: 1. MONEDAS
+  // -------------------------------------------------------------
+  public getCurrencies(): CurrencyItem[] {
+    if (!this.db.monedas || !Array.isArray(this.db.monedas) || this.db.monedas.length === 0) {
+      this.db.monedas = [...INITIAL_CURRENCY_ITEMS];
+    }
+    return this.db.monedas;
+  }
+
+  public saveCurrencyItem(item: CurrencyItem) {
+    if (!this.db.monedas) {
+      this.db.monedas = [...INITIAL_CURRENCY_ITEMS];
+    }
+    const idx = this.db.monedas.findIndex((c) => c.id === item.id);
+
+    if (item.esPrincipal) {
+      this.db.monedas.forEach((c) => {
+        if (c.id !== item.id) c.esPrincipal = false;
+      });
+      item.esReferencia = false;
+      item.valorTasa = 1.0;
+      this.db.moneda.monedaPrincipal = {
+        codigo: item.codigo.trim().toUpperCase(),
+        simbolo: item.simbolo.trim(),
+        nombre: item.nombre.trim(),
+        decimales: item.decimales,
+      };
+    }
+
+    if (item.esReferencia) {
+      this.db.monedas.forEach((c) => {
+        if (c.id !== item.id) c.esReferencia = false;
+      });
+      item.esPrincipal = false;
+      this.db.moneda.monedaReferencia = {
+        codigo: item.codigo.trim().toUpperCase(),
+        simbolo: item.simbolo.trim(),
+        nombre: item.nombre.trim(),
+        decimales: item.decimales,
+      };
+      if (item.valorTasa > 0) {
+        this.db.moneda.tasaCambio = item.valorTasa;
+      }
+    }
+
+    if (idx >= 0) {
+      this.db.monedas[idx] = item;
+      this.addAuditLog('MODIFICAR_MONEDA', 'CONFIGURACION', `Moneda actualizada: ${item.codigo} - ${item.nombre} (Tasa: ${item.valorTasa})`);
+    } else {
+      this.db.monedas.push(item);
+      this.addAuditLog('CREAR_MONEDA', 'CONFIGURACION', `Nueva moneda creada: ${item.codigo} - ${item.nombre} (Símbolo: ${item.simbolo})`);
+    }
+
+    this.saveDatabase(this.db);
+  }
+
+  public deleteCurrencyItem(id: string): { success: boolean; error?: string } {
+    if (!this.db.monedas) return { success: false, error: 'No hay monedas registradas' };
+    const item = this.db.monedas.find((c) => c.id === id);
+    if (!item) return { success: false, error: 'Moneda no encontrada' };
+
+    if (item.esPrincipal) {
+      return { success: false, error: 'No puede eliminar la Moneda Principal activa del sistema. Asigne otra moneda como principal primero.' };
+    }
+    if (item.esReferencia) {
+      return { success: false, error: 'No puede eliminar la Moneda de Referencia activa del sistema. Asigne otra moneda como referencia primero.' };
+    }
+
+    const linkedPM = (this.db.metodosPagoConfig || []).find((pm) => pm.monedaId === id || pm.monedaCodigo === item.codigo);
+    if (linkedPM) {
+      return { success: false, error: `No puede eliminar esta moneda porque está vinculada al método de pago "${linkedPM.nombre}". Edite o elimine dicho método primero.` };
+    }
+
+    this.db.monedas = this.db.monedas.filter((c) => c.id !== id);
+    this.addAuditLog('ELIMINAR_MONEDA', 'CONFIGURACION', `Moneda eliminada: ${item.codigo} (${item.nombre})`);
+    this.saveDatabase(this.db);
+    return { success: true };
+  }
+
+  public setPrincipalCurrency(id: string) {
+    const currencies = this.getCurrencies();
+    const target = currencies.find((c) => c.id === id);
+    if (!target) return;
+
+    currencies.forEach((c) => {
+      c.esPrincipal = c.id === id;
+      if (c.id === id) {
+        c.esReferencia = false;
+        c.valorTasa = 1.0;
+      }
+    });
+
+    this.db.moneda.monedaPrincipal = {
+      codigo: target.codigo,
+      simbolo: target.simbolo,
+      nombre: target.nombre,
+      decimales: target.decimales,
+    };
+
+    this.addAuditLog('ESTABLECER_MONEDA_PRINCIPAL', 'CONFIGURACION', `Moneda Principal cambiada a: ${target.codigo} (${target.nombre})`);
+    this.saveDatabase(this.db);
+  }
+
+  public setReferenceCurrency(id: string, valorTasa?: number) {
+    const currencies = this.getCurrencies();
+    const target = currencies.find((c) => c.id === id);
+    if (!target) return;
+
+    currencies.forEach((c) => {
+      c.esReferencia = c.id === id;
+      if (c.id === id) {
+        c.esPrincipal = false;
+        if (valorTasa && valorTasa > 0) {
+          c.valorTasa = valorTasa;
+        }
+      }
+    });
+
+    const rate = (valorTasa && valorTasa > 0) ? valorTasa : (target.valorTasa || 1);
+
+    this.db.moneda.monedaReferencia = {
+      codigo: target.codigo,
+      simbolo: target.simbolo,
+      nombre: target.nombre,
+      decimales: target.decimales,
+    };
+    this.db.moneda.tasaCambio = rate;
+    this.db.moneda.ultimaActualizacionTasa = new Date().toISOString();
+
+    this.addAuditLog('ESTABLECER_MONEDA_REFERENCIA', 'CONFIGURACION', `Moneda de Referencia cambiada a: ${target.codigo} (${target.nombre}) con tasa ${rate}`);
+    this.saveDatabase(this.db);
+  }
+
+  public updateReferenceRate(valorTasa: number) {
+    if (isNaN(valorTasa) || valorTasa <= 0) return;
+    const currencies = this.getCurrencies();
+    const ref = currencies.find((c) => c.esReferencia);
+    if (ref) {
+      ref.valorTasa = valorTasa;
+    }
+    this.db.moneda.tasaCambio = valorTasa;
+    this.db.moneda.ultimaActualizacionTasa = new Date().toISOString();
+    this.addAuditLog('ACTUALIZAR_TASA_CAMBIO', 'CONFIGURACION', `Tasa de cambio actualizada: 1 ${this.db.moneda.monedaPrincipal.codigo} = ${valorTasa} ${this.db.moneda.monedaReferencia.codigo}`);
+    this.saveDatabase(this.db);
+  }
+
+  // -------------------------------------------------------------
+  // FACTURACIÓN: 2. CUENTAS BANCARIAS
+  // -------------------------------------------------------------
+  public getBankAccounts(): BankAccount[] {
+    if (!this.db.cuentasBancarias || !Array.isArray(this.db.cuentasBancarias) || this.db.cuentasBancarias.length === 0) {
+      this.db.cuentasBancarias = [...INITIAL_BANK_ACCOUNTS];
+    }
+    return this.db.cuentasBancarias;
+  }
+
+  public saveBankAccount(account: BankAccount) {
+    if (!this.db.cuentasBancarias) {
+      this.db.cuentasBancarias = [...INITIAL_BANK_ACCOUNTS];
+    }
+    const idx = this.db.cuentasBancarias.findIndex((a) => a.id === account.id);
+    if (idx >= 0) {
+      this.db.cuentasBancarias[idx] = account;
+      this.addAuditLog('MODIFICAR_CUENTA_BANCARIA', 'CONFIGURACION', `Cuenta bancaria modificada: ${account.banco} (${account.numeroCuenta}) - Titular: ${account.titular}`);
+    } else {
+      this.db.cuentasBancarias.push(account);
+      this.addAuditLog('CREAR_CUENTA_BANCARIA', 'CONFIGURACION', `Nueva cuenta bancaria creada: ${account.banco} (${account.numeroCuenta}) - RIF: ${account.documentoId}`);
+    }
+    this.saveDatabase(this.db);
+  }
+
+  public deleteBankAccount(id: string): { success: boolean; error?: string } {
+    if (!this.db.cuentasBancarias) return { success: false, error: 'No hay cuentas registradas' };
+    const acc = this.db.cuentasBancarias.find((a) => a.id === id);
+    if (!acc) return { success: false, error: 'Cuenta bancaria no encontrada' };
+
+    const linkedPM = (this.db.metodosPagoConfig || []).find((pm) => pm.cuentaId === id);
+    if (linkedPM) {
+      return {
+        success: false,
+        error: `No se puede eliminar la cuenta "${acc.banco}" porque está vinculada al método de pago "${linkedPM.nombre}". Modifique o elimine el método de pago primero.`,
+      };
+    }
+
+    this.db.cuentasBancarias = this.db.cuentasBancarias.filter((a) => a.id !== id);
+    this.addAuditLog('ELIMINAR_CUENTA_BANCARIA', 'CONFIGURACION', `Cuenta bancaria eliminada: ${acc.banco} (${acc.numeroCuenta})`);
+    this.saveDatabase(this.db);
+    return { success: true };
+  }
+
+  // -------------------------------------------------------------
+  // FACTURACIÓN: 3. MÉTODOS DE PAGO
+  // -------------------------------------------------------------
+  public getPaymentMethodsConfig(): PaymentMethodItem[] {
+    if (!this.db.metodosPagoConfig || !Array.isArray(this.db.metodosPagoConfig) || this.db.metodosPagoConfig.length === 0) {
+      this.db.metodosPagoConfig = [...INITIAL_PAYMENT_METHODS];
+    }
+    return this.db.metodosPagoConfig;
+  }
+
+  public savePaymentMethodConfig(method: PaymentMethodItem): { success: boolean; error?: string } {
+    if (!method.monedaId) {
+      return { success: false, error: 'Debe vincular el método de pago al menos a una moneda.' };
+    }
+    if (!method.cuentaId) {
+      return { success: false, error: 'Debe vincular el método de pago a una cuenta bancaria.' };
+    }
+
+    if (!this.db.metodosPagoConfig) {
+      this.db.metodosPagoConfig = [...INITIAL_PAYMENT_METHODS];
+    }
+
+    const idx = this.db.metodosPagoConfig.findIndex((m) => m.id === method.id);
+    if (idx >= 0) {
+      this.db.metodosPagoConfig[idx] = method;
+      this.addAuditLog('MODIFICAR_METODO_PAGO', 'CONFIGURACION', `Método de pago modificado: ${method.nombre} (${method.tipo})`);
+    } else {
+      this.db.metodosPagoConfig.push(method);
+      this.addAuditLog('CREAR_METODO_PAGO', 'CONFIGURACION', `Nuevo método de pago creado: ${method.nombre} (${method.tipo})`);
+    }
+    this.saveDatabase(this.db);
+    return { success: true };
+  }
+
+  public deletePaymentMethodConfig(id: string): { success: boolean; error?: string } {
+    if (!this.db.metodosPagoConfig) return { success: false, error: 'No hay métodos de pago registrados' };
+    const pm = this.db.metodosPagoConfig.find((m) => m.id === id);
+    if (!pm) return { success: false, error: 'Método de pago no encontrado' };
+
+    this.db.metodosPagoConfig = this.db.metodosPagoConfig.filter((m) => m.id !== id);
+    this.addAuditLog('ELIMINAR_METODO_PAGO', 'CONFIGURACION', `Método de pago eliminado: ${pm.nombre}`);
+    this.saveDatabase(this.db);
+    return { success: true };
   }
 
   public saveTax(tax: Tax) {
@@ -1168,6 +1952,55 @@ class DatabaseService {
         `Venta completada Ticket #${sale.numeroTicket} por $${sale.totalPrincipal.toFixed(2)} (${sale.totalReferencia.toFixed(2)} ${this.db.moneda.monedaReferencia.codigo}) - Vendedor: ${sale.vendedorNombre}`
       );
     }
+
+    // If sale is a credit sale with outstanding balance, record in Cuentas por Cobrar
+    if (
+      (sale.condicionVenta === 'CREDITO' || (sale.saldoPendientePrincipal && sale.saldoPendientePrincipal > 0.009)) &&
+      sale.cliente &&
+      sale.cliente.docId &&
+      sale.cliente.docId !== 'V-00000000'
+    ) {
+      const pendingPrincipal = sale.saldoPendientePrincipal || Math.max(0, sale.totalPrincipal - sale.pago.montoPagadoPrincipal);
+      const paidPrincipal = sale.montoAbonadoPrincipal !== undefined ? sale.montoAbonadoPrincipal : sale.pago.montoPagadoPrincipal;
+      if (pendingPrincipal > 0.009) {
+        this.addClientDebt({
+          clienteDocId: sale.cliente.docId,
+          clienteNombre: sale.cliente.nombre,
+          clienteTelefono: sale.cliente.telefono,
+          ticketId: sale.id,
+          numeroTicket: sale.numeroTicket,
+          fecha: sale.fecha,
+          montoTotalPrincipal: sale.totalPrincipal,
+          montoAbonadoPrincipal: paidPrincipal,
+          saldoPendientePrincipal: pendingPrincipal,
+          montoTotalReferencia: sale.totalReferencia,
+          montoAbonadoReferencia: Number((paidPrincipal * sale.tasaCambioAplicada).toFixed(2)),
+          saldoPendienteReferencia: Number((pendingPrincipal * sale.tasaCambioAplicada).toFixed(2)),
+          tasaCambio: sale.tasaCambioAplicada,
+          estado: 'PENDIENTE',
+          notas: `Venta a Crédito #${sale.numeroTicket}. Monto abonado: $${paidPrincipal.toFixed(2)}`,
+          historialAbonos: paidPrincipal > 0 ? [
+            {
+              id: 'abono-' + Date.now(),
+              fecha: sale.fecha,
+              montoPrincipal: paidPrincipal,
+              montoReferencia: Number((paidPrincipal * sale.tasaCambioAplicada).toFixed(2)),
+              metodoPago: sale.pago.metodo,
+              referenciaBancaria: sale.pago.referenciaBancaria,
+              usuarioNombre: sale.vendedorNombre,
+              notas: 'Abono inicial al procesar venta a crédito'
+            }
+          ] : []
+        });
+      }
+    }
+
+    // If this sale included a previous debt collection line item, mark the previous debts as settled
+    const debtItem = sale.items.find(i => i.producto.id === 'DEUDA-PENDIENTE' || i.producto.codigoBarras === 'DEUDA-CXC');
+    if (debtItem && sale.cliente && sale.cliente.docId) {
+      this.settleAllClientDebts(sale.cliente.docId, sale.numeroTicket, debtItem.subtotal);
+    }
+
     this.saveDatabase(this.db);
     return sale;
   }
@@ -1335,10 +2168,428 @@ class DatabaseService {
     this.addAuditLog('REINICIO_FABRICA', 'CONFIGURACION', 'El sistema fue restaurado a sus valores iniciales de fábrica.');
   }
 
+  public getClients(): ClientData[] {
+    if (!this.db.clientes || this.db.clientes.length === 0) {
+      this.db.clientes = [...INITIAL_CLIENTS];
+      this.saveDatabase(this.db);
+    }
+    return this.db.clientes;
+  }
+
+  public saveClient(client: ClientData): ClientData {
+    if (!this.db.clientes) {
+      this.db.clientes = [...INITIAL_CLIENTS];
+    }
+    const cleanDoc = (client.docId || '').trim();
+    const existingIdx = this.db.clientes.findIndex(
+      (c) => c.docId.trim().toLowerCase() === cleanDoc.toLowerCase()
+    );
+    if (existingIdx >= 0) {
+      this.db.clientes[existingIdx] = { ...client };
+    } else {
+      this.db.clientes.push({ ...client });
+    }
+    this.addAuditLog('CLIENTE_GUARDADO', 'VENTAS', `Cliente registrado/actualizado: ${client.nombre} (${client.docId})`);
+    this.saveDatabase(this.db);
+    return client;
+  }
+
+  // =============================================================
+  // VENTAS GUARDADAS (EN ESPERA)
+  // No alteran inventario, stock, movimientos ni estadísticas.
+  // =============================================================
+  public getSavedSales(): SavedSale[] {
+    if (!this.db.ventasGuardadas) {
+      this.db.ventasGuardadas = [];
+    }
+    return this.db.ventasGuardadas;
+  }
+
+  public saveSavedSale(savedSale: SavedSale): SavedSale {
+    if (!this.db.ventasGuardadas) {
+      this.db.ventasGuardadas = [];
+    }
+    const existingIndex = this.db.ventasGuardadas.findIndex((s) => s.id === savedSale.id);
+    if (existingIndex >= 0) {
+      this.db.ventasGuardadas[existingIndex] = { ...savedSale };
+    } else {
+      this.db.ventasGuardadas.unshift({ ...savedSale });
+    }
+    this.addAuditLog(
+      'VENTA_GUARDADA_ESPERA',
+      'VENTAS',
+      `Venta #${savedSale.codigo} guardada en espera por ${savedSale.vendedorNombre} (${savedSale.items.length} productos, total: ${savedSale.totalPrincipal.toFixed(2)}). Sin afectar inventario.`
+    );
+    this.saveDatabase(this.db);
+    return savedSale;
+  }
+
+  public deleteSavedSale(id: string): boolean {
+    if (!this.db.ventasGuardadas) {
+      this.db.ventasGuardadas = [];
+      return false;
+    }
+    const saleToDelete = this.db.ventasGuardadas.find((s) => s.id === id);
+    this.db.ventasGuardadas = this.db.ventasGuardadas.filter((s) => s.id !== id);
+    if (saleToDelete) {
+      this.addAuditLog(
+        'VENTA_GUARDADA_ELIMINADA',
+        'VENTAS',
+        `Venta guardada #${saleToDelete.codigo} descartada/eliminada por el usuario.`
+      );
+    }
+    this.saveDatabase(this.db);
+    return true;
+  }
+
+  // =============================================================
+  // CUENTAS POR COBRAR (CONTROL ESTRICTO DE DEUDAS POR CLIENTE)
+  // =============================================================
+  public getClientDebts(clienteDocId?: string): ClientDebt[] {
+    if (!this.db.cuentasPorCobrar) {
+      this.db.cuentasPorCobrar = [...INITIAL_DEBTS];
+    }
+    if (clienteDocId) {
+      const cleanDoc = clienteDocId.trim().toLowerCase();
+      return this.db.cuentasPorCobrar.filter(
+        (d) => d.clienteDocId.trim().toLowerCase() === cleanDoc
+      );
+    }
+    return this.db.cuentasPorCobrar;
+  }
+
+  public getPendingClientDebts(clienteDocId?: string): ClientDebt[] {
+    const all = this.getClientDebts(clienteDocId);
+    return all.filter((d) => d.estado === 'PENDIENTE' && d.saldoPendientePrincipal > 0.009);
+  }
+
+  public getClientTotalPendingDebt(clienteDocId: string): {
+    totalPrincipal: number;
+    totalReferencia: number;
+    debts: ClientDebt[];
+  } {
+    const debts = this.getPendingClientDebts(clienteDocId);
+    const totalPrincipal = Number(debts.reduce((sum, d) => sum + d.saldoPendientePrincipal, 0).toFixed(2));
+    const totalReferencia = Number((totalPrincipal * this.db.moneda.tasaCambio).toFixed(2));
+    return {
+      totalPrincipal,
+      totalReferencia,
+      debts,
+    };
+  }
+
+  public addClientDebt(debt: Omit<ClientDebt, 'id'>): ClientDebt {
+    if (!this.db.cuentasPorCobrar) {
+      this.db.cuentasPorCobrar = [];
+    }
+    // Check if debt already exists for this ticket
+    const existing = this.db.cuentasPorCobrar.find((d) => d.numeroTicket === debt.numeroTicket);
+    if (existing) {
+      Object.assign(existing, debt);
+      this.saveDatabase(this.db);
+      return existing;
+    }
+
+    const newDebt: ClientDebt = {
+      ...debt,
+      id: 'debt-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+    };
+    this.db.cuentasPorCobrar.unshift(newDebt);
+    this.addAuditLog(
+      'CUENTA_POR_COBRAR_CREADA',
+      'VENTAS',
+      `Venta a Crédito #${newDebt.numeroTicket} a ${newDebt.clienteNombre} (${newDebt.clienteDocId}). Total: $${newDebt.montoTotalPrincipal.toFixed(2)}, Abonado: $${newDebt.montoAbonadoPrincipal.toFixed(2)}, Saldo Deudor: $${newDebt.saldoPendientePrincipal.toFixed(2)}`
+    );
+    this.saveDatabase(this.db);
+    return newDebt;
+  }
+
+  public addDebtPayment(
+    debtId: string,
+    amountPrincipal: number,
+    metodoPago: string,
+    referenciaBancaria?: string,
+    notas?: string
+  ): ClientDebt | null {
+    if (!this.db.cuentasPorCobrar) return null;
+    const debt = this.db.cuentasPorCobrar.find((d) => d.id === debtId);
+    if (!debt) return null;
+
+    const paymentAmount = Math.min(amountPrincipal, debt.saldoPendientePrincipal);
+    debt.montoAbonadoPrincipal = Number((debt.montoAbonadoPrincipal + paymentAmount).toFixed(2));
+    debt.saldoPendientePrincipal = Number(Math.max(0, debt.saldoPendientePrincipal - paymentAmount).toFixed(2));
+    debt.montoAbonadoReferencia = Number((debt.montoAbonadoPrincipal * this.db.moneda.tasaCambio).toFixed(2));
+    debt.saldoPendienteReferencia = Number((debt.saldoPendientePrincipal * this.db.moneda.tasaCambio).toFixed(2));
+
+    if (debt.saldoPendientePrincipal <= 0.009) {
+      debt.estado = 'PAGADO';
+    }
+
+    if (!debt.historialAbonos) debt.historialAbonos = [];
+    const currentUserName = this.currentUser ? `${this.currentUser.nombre} ${this.currentUser.apellido}` : 'Cajero';
+    debt.historialAbonos.push({
+      id: 'abono-' + Date.now(),
+      fecha: new Date().toISOString(),
+      montoPrincipal: paymentAmount,
+      montoReferencia: Number((paymentAmount * this.db.moneda.tasaCambio).toFixed(2)),
+      metodoPago,
+      referenciaBancaria,
+      usuarioNombre: currentUserName,
+      notas: notas || 'Abono registrado en caja',
+    });
+
+    this.addAuditLog(
+      'ABONO_DEUDA_REGISTRADO',
+      'VENTAS',
+      `Abono de $${paymentAmount.toFixed(2)} registrado para deuda #${debt.numeroTicket} de ${debt.clienteNombre}. Saldo restante: $${debt.saldoPendientePrincipal.toFixed(2)}`
+    );
+    this.saveDatabase(this.db);
+    return debt;
+  }
+
+  public settleAllClientDebts(clienteDocId: string, newTicketNumber: string, amountSettled?: number): void {
+    if (!this.db.cuentasPorCobrar) return;
+    const cleanDoc = clienteDocId.trim().toLowerCase();
+    const debts = this.db.cuentasPorCobrar.filter(
+      (d) => d.clienteDocId.trim().toLowerCase() === cleanDoc && d.estado === 'PENDIENTE'
+    );
+    let remainingSettlement = amountSettled !== undefined ? amountSettled : Infinity;
+
+    for (const debt of debts) {
+      if (remainingSettlement <= 0.001) break;
+      const toPay = Math.min(debt.saldoPendientePrincipal, remainingSettlement);
+      debt.montoAbonadoPrincipal = Number((debt.montoAbonadoPrincipal + toPay).toFixed(2));
+      debt.saldoPendientePrincipal = Number(Math.max(0, debt.saldoPendientePrincipal - toPay).toFixed(2));
+      debt.montoAbonadoReferencia = Number((debt.montoAbonadoPrincipal * this.db.moneda.tasaCambio).toFixed(2));
+      debt.saldoPendienteReferencia = Number((debt.saldoPendientePrincipal * this.db.moneda.tasaCambio).toFixed(2));
+      if (debt.saldoPendientePrincipal <= 0.009) {
+        debt.estado = 'PAGADO';
+      }
+      if (!debt.historialAbonos) debt.historialAbonos = [];
+      debt.historialAbonos.push({
+        id: 'abono-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+        fecha: new Date().toISOString(),
+        montoPrincipal: toPay,
+        montoReferencia: Number((toPay * this.db.moneda.tasaCambio).toFixed(2)),
+        metodoPago: 'LIQUIDADO_EN_FACTURA',
+        ticketCobro: newTicketNumber,
+        usuarioNombre: this.currentUser ? `${this.currentUser.nombre} ${this.currentUser.apellido}` : 'Cajero',
+        notas: `Saldo liquidado e incorporado en Ticket #${newTicketNumber}`,
+      });
+      remainingSettlement -= toPay;
+    }
+    this.addAuditLog(
+      'DEUDAS_CLIENTE_LIQUIDADAS',
+      'VENTAS',
+      `Deuda(s) del cliente ${clienteDocId} saldadas e incorporadas en factura #${newTicketNumber}`
+    );
+    this.saveDatabase(this.db);
+  }
+
   public simulateOnlineSync(): { success: boolean; syncedAt: string } {
     this.db.ultimaSincronizacion = new Date().toISOString();
     this.saveDatabase(this.db);
     return { success: true, syncedAt: this.db.ultimaSincronizacion };
+  }
+
+  // -------------------------------------------------------------
+  // MÓDULO TALLER Y GESTIÓN DE PEDIDOS
+  // -------------------------------------------------------------
+  public getWorkshopOrders(): WorkshopOrder[] {
+    if (!this.db.pedidosTaller || !Array.isArray(this.db.pedidosTaller)) {
+      this.db.pedidosTaller = [...INITIAL_WORKSHOP_ORDERS];
+      this.saveDatabase(this.db);
+    }
+    return [...this.db.pedidosTaller];
+  }
+
+  public getWorkshopOrderById(id: string): WorkshopOrder | undefined {
+    const orders = this.getWorkshopOrders();
+    return orders.find((o) => o.id === id || o.numeroPedido === id);
+  }
+
+  public saveWorkshopOrder(order: WorkshopOrder): void {
+    if (!this.db.pedidosTaller) {
+      this.db.pedidosTaller = [];
+    }
+    const idx = this.db.pedidosTaller.findIndex((o) => o.id === order.id);
+    if (idx >= 0) {
+      this.db.pedidosTaller[idx] = order;
+      this.addAuditLog(
+        'PEDIDO_TALLER_MODIFICADO',
+        'TALLER',
+        `Pedido #${order.numeroPedido} actualizado (${order.estado}) para ${order.cliente.nombre}`
+      );
+    } else {
+      this.db.pedidosTaller.unshift(order);
+      this.addAuditLog(
+        'PEDIDO_TALLER_CREADO',
+        'TALLER',
+        `Nuevo Pedido de Taller #${order.numeroPedido} creado para ${order.cliente.nombre}`
+      );
+    }
+    this.saveDatabase(this.db);
+  }
+
+  public updateWorkshopOrderStatus(
+    orderId: string,
+    newStatus: WorkshopOrderStatus,
+    statusNote?: string
+  ): WorkshopOrder | null {
+    if (!this.db.pedidosTaller) return null;
+    const order = this.db.pedidosTaller.find((o) => o.id === orderId);
+    if (!order) return null;
+
+    order.estado = newStatus;
+    // Update product items in this order to match the new status
+    if (order.items && order.items.length > 0) {
+      order.items = order.items.map((item) => ({
+        ...item,
+        estado: newStatus,
+      }));
+    }
+    const now = new Date();
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const formattedNow = `${now.getDate()} ${months[now.getMonth()]}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    const statusOrder: WorkshopOrderStatus[] = [
+      'ACEPTADO',
+      'EN_CONFECCION',
+      'EN_DISENO',
+      'LISTO',
+      'ENTREGADO',
+    ];
+    // Map CONFIRMADO to ACEPTADO if encountered
+    const normalizedTarget = (newStatus === 'CONFIRMADO' ? 'ACEPTADO' : newStatus) as WorkshopOrderStatus;
+    const targetIdx = statusOrder.indexOf(normalizedTarget);
+
+    order.timeline = statusOrder.map((st, i) => {
+      const existing = order.timeline?.find((t) => t.estado === st || (st === 'ACEPTADO' && t.estado === 'CONFIRMADO'));
+      const isPast = i < targetIdx;
+      const isCurrent = i === targetIdx;
+
+      let fecha = existing?.fecha;
+      let descripcion = existing?.descripcion;
+
+      if (isCurrent) {
+        fecha = formattedNow;
+        if (statusNote) {
+          descripcion = statusNote;
+        } else if (!descripcion) {
+          descripcion = `${formattedNow} - Pedido en estado ${st === 'ACEPTADO' ? 'ACEPTADO' : st.replace('_', ' ')}`;
+        }
+      } else if (isPast && !fecha) {
+        fecha = 'Completado';
+      }
+
+      return {
+        estado: st,
+        titulo:
+          st === 'ACEPTADO'
+            ? 'ACEPTADO'
+            : st === 'EN_CONFECCION'
+            ? 'CONFECCIÓN'
+            : st === 'EN_DISENO'
+            ? 'DISEÑO'
+            : st === 'LISTO'
+            ? 'LISTO'
+            : 'ENTREGADO',
+        fecha,
+        completado: isPast || (isCurrent && st === 'ENTREGADO'),
+        actual: isCurrent && st !== 'ENTREGADO',
+        descripcion,
+      };
+    });
+
+    if (newStatus === 'ENTREGADO') {
+      order.fechaEntregaReal = now.toISOString();
+    }
+
+    this.addAuditLog(
+      'ESTADO_PEDIDO_ACTUALIZADO',
+      'TALLER',
+      `Pedido #${order.numeroPedido} actualizado a '${newStatus}'`
+    );
+    this.saveDatabase(this.db);
+    return order;
+  }
+
+  public updateWorkshopOrderItemStatus(
+    orderId: string,
+    itemId: string,
+    itemStatus: WorkshopOrderStatus
+  ): WorkshopOrder | null {
+    if (!this.db.pedidosTaller) return null;
+    const order = this.db.pedidosTaller.find((o) => o.id === orderId);
+    if (!order) return null;
+
+    order.items = order.items.map((item) =>
+      item.id === itemId ? { ...item, estado: itemStatus } : item
+    );
+
+    this.addAuditLog(
+      'ESTADO_PRODUCTO_PEDIDO_ACTUALIZADO',
+      'TALLER',
+      `Producto en pedido #${order.numeroPedido} actualizado a estado '${itemStatus}'`
+    );
+    this.saveDatabase(this.db);
+    return order;
+  }
+
+  public addWorkshopOrderPayment(
+    orderId: string,
+    amount: number,
+    metodoPago: string,
+    notas?: string
+  ): WorkshopOrder | null {
+    if (!this.db.pedidosTaller) return null;
+    const order = this.db.pedidosTaller.find((o) => o.id === orderId);
+    if (!order) return null;
+
+    const currentAbonado = order.montoAbonadoPrincipal || 0;
+    const newAbonado = Number((currentAbonado + amount).toFixed(2));
+    const newSaldo = Math.max(0, Number((order.totalPrincipal - newAbonado).toFixed(2)));
+
+    order.montoAbonadoPrincipal = newAbonado;
+    order.saldoPendientePrincipal = newSaldo;
+    order.tipoPago = newSaldo === 0 ? 'COMPLETO' : 'PARCIAL';
+
+    if (!order.historialAbonos) order.historialAbonos = [];
+    order.historialAbonos.push({
+      id: 'abono-' + Date.now(),
+      fecha: new Date().toISOString(),
+      monto: amount,
+      metodoPago: metodoPago,
+      usuarioNombre: this.currentUser ? `${this.currentUser.nombre} ${this.currentUser.apellido}` : undefined,
+      notas: notas,
+    });
+
+    this.addAuditLog(
+      'PAGO_PEDIDO_TALLER',
+      'TALLER',
+      `Abono de $${amount} (${metodoPago}) en pedido #${order.numeroPedido}. Saldo restante: $${newSaldo}`
+    );
+    this.saveDatabase(this.db);
+    return order;
+  }
+
+  public deleteWorkshopOrder(orderId: string): boolean {
+    if (!this.db.pedidosTaller) return false;
+    const initialLen = this.db.pedidosTaller.length;
+    const toDelete = this.db.pedidosTaller.find((o) => o.id === orderId);
+    this.db.pedidosTaller = this.db.pedidosTaller.filter((o) => o.id !== orderId);
+    if (this.db.pedidosTaller.length !== initialLen) {
+      if (toDelete) {
+        this.addAuditLog(
+          'PEDIDO_TALLER_ELIMINADO',
+          'TALLER',
+          `Pedido #${toDelete.numeroPedido} eliminado del taller`
+        );
+      }
+      this.saveDatabase(this.db);
+      return true;
+    }
+    return false;
   }
 }
 

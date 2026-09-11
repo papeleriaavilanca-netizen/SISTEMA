@@ -17,11 +17,13 @@ import {
   Pin,
   PinOff,
   LayoutDashboard,
+  ClipboardList,
 } from 'lucide-react';
 
 export type ActiveTab =
   | 'dashboard'
   | 'ventas'
+  | 'taller'
   | 'inventario'
   | 'productos'
   | 'categorias'
@@ -34,6 +36,7 @@ export type ActiveTab =
 export const TAB_LABELS: Record<ActiveTab, string> = {
   dashboard: 'Dashboard & Métricas',
   ventas: 'Ventas (TPV)',
+  taller: 'Taller & Pedidos',
   productos: 'Productos',
   inventario: 'Inventario',
   categorias: 'Categorías',
@@ -77,6 +80,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: ShoppingCart,
       allowed: permissions.canAccessPOS,
       badge: 'Caja',
+    },
+    {
+      id: 'taller' as ActiveTab,
+      label: 'Taller & Pedidos',
+      icon: ClipboardList,
+      allowed: true,
+      badge: 'Taller',
     },
     {
       id: 'productos' as ActiveTab,

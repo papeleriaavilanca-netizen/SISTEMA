@@ -22,6 +22,11 @@ export interface TicketPdfData {
   cambioPrincipal?: number;
   cambioReferencia?: number;
   referenceCode?: string;
+  condicionVenta?: 'CONTADO' | 'CREDITO';
+  montoAbonadoPrincipal?: number;
+  saldoPendientePrincipal?: number;
+  montoAbonadoReferencia?: number;
+  saldoPendienteReferencia?: number;
 }
 
 /**
@@ -220,6 +225,21 @@ export function generateTicketPDF(
     if (data.paidReferencia && data.paidReferencia > 0) {
       doc.text(`PAGADO (${currency.monedaReferencia.codigo}): ${formatCurrency(data.paidReferencia, currency.monedaReferencia)}`, margin, currentY);
       currentY += 2.8;
+    }
+
+    if (data.condicionVenta === 'CREDITO' || (data.saldoPendientePrincipal && data.saldoPendientePrincipal > 0)) {
+      doc.setFont('courier', 'bold');
+      doc.setTextColor(220, 38, 38);
+      doc.text(`*** VENTA A CRÉDITO ***`, margin, currentY);
+      currentY += 2.8;
+      if (data.montoAbonadoPrincipal !== undefined) {
+        doc.text(`ABONADO: ${formatCurrency(data.montoAbonadoPrincipal, currency.monedaPrincipal)}`, margin, currentY);
+        currentY += 2.8;
+      }
+      if (data.saldoPendientePrincipal !== undefined) {
+        doc.text(`SALDO PENDIENTE (CXC): ${formatCurrency(data.saldoPendientePrincipal, currency.monedaPrincipal)}`, margin, currentY);
+        currentY += 3.2;
+      }
     }
 
     if ((data.cambioPrincipal && data.cambioPrincipal > 0) || (data.cambioReferencia && data.cambioReferencia > 0)) {
@@ -432,6 +452,15 @@ export function generateTraditionalInvoicePDF(
     doc.text(`Referencia: ${data.referenceCode}`, margin + 2, currentY + 16);
   }
   doc.text(`Tasa de Cambio Oficial: 1 ${currency.monedaPrincipal.codigo} = ${data.tasaCambio.toFixed(2)} ${currency.monedaReferencia.codigo}`, margin + 2, currentY + 21);
+
+  if (data.condicionVenta === 'CREDITO' || (data.saldoPendientePrincipal && data.saldoPendientePrincipal > 0)) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(220, 38, 38);
+    doc.text(`CONDICIÓN: VENTA A CRÉDITO`, margin + 2, currentY + 26);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text(`Abonado: ${formatCurrency(data.montoAbonadoPrincipal || 0, currency.monedaPrincipal)} | Pendiente: ${formatCurrency(data.saldoPendientePrincipal || 0, currency.monedaPrincipal)}`, margin + 2, currentY + 31);
+  }
 
   // Right side: Totals
   doc.setFillColor(248, 250, 252);

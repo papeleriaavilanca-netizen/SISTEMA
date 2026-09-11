@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { CompanyConfig, CurrencyConfig, Tax, SecurityConfig } from '../types';
 import { db } from '../services/db';
+import { FacturacionConfig } from './FacturacionConfig';
 import {
   Settings,
   Building,
   DollarSign,
   Receipt,
+  ReceiptText,
   Database,
   Check,
   Plus,
@@ -35,7 +37,7 @@ export const ConfigModule: React.FC<ConfigModuleProps> = ({
   taxes,
   canManage,
 }) => {
-  const [activeTab, setActiveTab] = useState<'EMPRESA' | 'MONEDA' | 'IMPUESTOS' | 'SEGURIDAD' | 'DATABASE'>('EMPRESA');
+  const [activeTab, setActiveTab] = useState<'EMPRESA' | 'FACTURACION' | 'IMPUESTOS' | 'SEGURIDAD' | 'DATABASE'>('EMPRESA');
   const [savedSuccess, setSavedSuccess] = useState('');
 
   // Security Form State
@@ -57,15 +59,6 @@ export const ConfigModule: React.FC<ConfigModuleProps> = ({
   const [facebook, setFacebook] = useState(company.redesSociales.facebook || '');
   const [sitioWeb, setSitioWeb] = useState(company.redesSociales.sitioWeb || '');
   const [mensajePie, setMensajePie] = useState(company.mensajePieTicket || '');
-
-  // Currency Form State
-  const [codPrim, setCodPrim] = useState(currency.monedaPrincipal.codigo);
-  const [simbPrim, setSimbPrim] = useState(currency.monedaPrincipal.simbolo);
-  const [nomPrim, setNomPrim] = useState(currency.monedaPrincipal.nombre);
-  const [codRef, setCodRef] = useState(currency.monedaReferencia.codigo);
-  const [simbRef, setSimbRef] = useState(currency.monedaReferencia.simbolo);
-  const [nomRef, setNomRef] = useState(currency.monedaReferencia.nombre);
-  const [tasaCambio, setTasaCambio] = useState(currency.tasaCambio.toString());
 
   // Taxes Form State
   const [newTaxNombre, setNewTaxNombre] = useState('');
@@ -94,34 +87,6 @@ export const ConfigModule: React.FC<ConfigModuleProps> = ({
       mensajePieTicket: mensajePie,
     });
     flashSuccess('Datos de la Empresa guardados exitosamente.');
-  };
-
-  const handleSaveCurrency = (e: React.FormEvent) => {
-    e.preventDefault();
-    const rateNum = parseFloat(tasaCambio);
-    if (isNaN(rateNum) || rateNum <= 0) {
-      alert('La tasa de cambio debe ser un número mayor a 0');
-      return;
-    }
-
-    db.updateCurrency({
-      monedaPrincipal: {
-        codigo: codPrim.trim().toUpperCase(),
-        simbolo: simbPrim.trim(),
-        nombre: nomPrim.trim(),
-        decimales: 2,
-      },
-      monedaReferencia: {
-        codigo: codRef.trim().toUpperCase(),
-        simbolo: simbRef.trim(),
-        nombre: nomRef.trim(),
-        decimales: 2,
-      },
-      tasaCambio: rateNum,
-      ultimaActualizacionTasa: new Date().toISOString(),
-      modoAutoActualizar: currency.modoAutoActualizar,
-    });
-    flashSuccess('Configuración de Monedas y Tasa guardada.');
   };
 
   const handleAddTax = (e: React.FormEvent) => {
@@ -231,7 +196,7 @@ export const ConfigModule: React.FC<ConfigModuleProps> = ({
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-semibold overflow-x-auto">
         {[
           { id: 'EMPRESA', label: '1. Empresa & RIF/NIT', icon: Building },
-          { id: 'MONEDA', label: '2. Monedas & Tasa', icon: DollarSign },
+          { id: 'FACTURACION', label: '2. Facturación y Finanzas', icon: ReceiptText },
           { id: 'IMPUESTOS', label: '3. Aranceles e Impuestos', icon: Receipt },
           { id: 'SEGURIDAD', label: '4. Seguridad & Cierre Auto', icon: ShieldCheck },
           { id: 'DATABASE', label: '5. Base de Datos & Respaldo', icon: Database },
@@ -411,126 +376,13 @@ export const ConfigModule: React.FC<ConfigModuleProps> = ({
         </form>
       )}
 
-      {/* TAB 2: MONEDA */}
-      {activeTab === 'MONEDA' && (
-        <form onSubmit={handleSaveCurrency} className="bg-white border border-slate-200 rounded-2xl p-6 space-y-5 shadow-xs">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-              Configuración de Multimoneda & Tasa de Cambio
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Configura la moneda principal (base contable) y la moneda de referencia para visualización y cobros duales.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Moneda Principal */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-              <span className="text-xs font-bold text-emerald-700 block">Moneda Principal (Base Contable)</span>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Código ISO (Ej. USD, EUR, VES)</label>
-                <input
-                  type="text"
-                  required
-                  value={codPrim}
-                  onChange={(e) => setCodPrim(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 uppercase font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Símbolo (Ej. $, €)</label>
-                <input
-                  type="text"
-                  required
-                  value={simbPrim}
-                  onChange={(e) => setSimbPrim(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre Descriptivo</label>
-                <input
-                  type="text"
-                  required
-                  value={nomPrim}
-                  onChange={(e) => setNomPrim(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            {/* Moneda de Referencia */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-              <span className="text-xs font-bold text-emerald-700 block">Moneda de Referencia (Visualización Dual)</span>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Código ISO (Ej. VES, COP, USD)</label>
-                <input
-                  type="text"
-                  required
-                  value={codRef}
-                  onChange={(e) => setCodRef(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 uppercase font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Símbolo (Ej. Bs., $)</label>
-                <input
-                  type="text"
-                  required
-                  value={simbRef}
-                  onChange={(e) => setSimbRef(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre Descriptivo</label>
-                <input
-                  type="text"
-                  required
-                  value={nomRef}
-                  onChange={(e) => setNomRef(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Tasa de Cambio Principal */}
-          <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200/80 space-y-2">
-            <label className="block text-xs font-bold text-slate-800">
-              Tasa de Cambio Oficial (1 {codPrim} equivale a cuántos {codRef}):
-            </label>
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-xs">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={tasaCambio}
-                  onChange={(e) => setTasaCambio(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                />
-                <span className="absolute right-3.5 top-2.5 text-xs text-slate-500 font-mono">{codRef}</span>
-              </div>
-              <span className="text-xs text-slate-500">
-                Última actualización: {new Date(currency.ultimaActualizacionTasa).toLocaleString('es-VE')}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-3 border-t border-slate-100">
-            <button
-              type="submit"
-              disabled={!canManage}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5"
-            >
-              <Check className="w-4 h-4" />
-              Guardar Monedas & Tasa
-            </button>
-          </div>
-        </form>
+      {/* TAB 2: FACTURACION */}
+      {activeTab === 'FACTURACION' && (
+        <FacturacionConfig
+          canManage={canManage}
+          currency={currency}
+          onFlashSuccess={flashSuccess}
+        />
       )}
 
       {/* TAB 3: IMPUESTOS */}
